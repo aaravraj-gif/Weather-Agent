@@ -7,6 +7,7 @@ import requests
 import pandas as pd
 from datetime import date
 import os
+import plotly.graph_objects as go
 
 # My camping location
 LATITUDE = 44.5979
@@ -21,46 +22,32 @@ def generate_dashboard():
     df = pd.read_csv("daily_log.csv", skipinitialspace=True)
     df["datetime"] = pd.to_datetime(df["time"])
     df = df.sort_values("datetime")
-    fig, ax = plt.subplots(figsize=(10, 5))
-    ax.plot(df["datetime"], df["temp_f"], color="steelblue",
-            linewidth=2, marker='o', markersize=5, label="Temp (°F)")
+
     max_idx = df["temp_f"].idxmax()
     min_idx = df["temp_f"].idxmin()
 
-    ax.scatter(df.loc[max_idx, "datetime"], df.loc[max_idx, "temp_f"],
-               color="red", zorder=5, label=f"Max: {df.loc[max_idx, 'temp_f']}°F")  # ← just added
-    ax.scatter(df.loc[min_idx, "datetime"], df.loc[min_idx, "temp_f"],
-               color="blue", zorder=5, label=f"Min: {df.loc[min_idx, 'temp_f']}°F")  # ← just added
-    ax.annotate(f"Max: {df.loc[max_idx, 'temp_f']}°F",
-                xy=(df.loc[max_idx, "datetime"], df.loc[max_idx, "temp_f"]),
-                xytext=(10, 10), textcoords="offset points",
-                color="red", fontsize=9)
-    ax.annotate(f"Min: {df.loc[min_idx, 'temp_f']}°F",
-                xy=(df.loc[min_idx, "datetime"], df.loc[min_idx, "temp_f"]),
-                xytext=(10, -15), textcoords="offset points",
-                color="blue", fontsize=9)
+    fig = go.Figure()
 
-    ax.set_ylim(df["temp_f"].min() - 5, df["temp_f"].max() + 8)
-    ax.xaxis.set_major_formatter(mdates.DateFormatter("%m/%d %H:%M"))
-    plt.xticks(rotation=45)
-    ax.set_title("My City Temperature Dashboard")
-    ax.set_ylabel("Temperature (°F)")
-    ax.legend()
-    plt.tight_layout()
-    plt.savefig("dashboard.png", dpi=150)
-    plt.close()
-def get_historical_weather(lat, lon, start_date, end_date):
-    url = "https://archive-api.open-meteo.com/v1/archive"
-    params = {
-        "latitude": lat,
-        "longitude": lon,
-        "start_date": start_date,
-        "end_date": end_date,
-        "daily": "temperature_2m_max,temperature_2m_min",
-        "timezone": "America/Los_Angeles"
-    }
-    response = requests.get(url, params=params)
-    return response.json()
+    fig.add_scatter(
+        x=df["datetime"], y=df["temp_f"],
+        mode="lines+markers", name="Temp (F)"
+    )
+    fig.add_scatter(
+        x=[df.loc[max_idx, "datetime"]], y=[df.loc[max_idx, "temp_f"]],
+        mode="markers+text",
+        marker=dict(color="red", size=14, symbol="star"),
+        text=[f"Max: {round(df.loc[max_idx, 'temp_f'], 1)}F"],
+        textposition="top right", name="Max"
+    )
+    fig.add_scatter(
+        x=[df.loc[min_idx, "datetime"]], y=[df.loc[min_idx, "temp_f"]],
+        mode="markers+text",
+        marker=dict(color="royalblue", size=14, symbol="star"),
+        text=[f"Min: {round(df.loc[min_idx, 'temp_f'], 1)}F"],
+        textposition="bottom right", name="Min"
+    )
+    fig.write_html("dashboard.html", include_plotlyjs="cdn")
+    print("Dashboard saved to dashboard.html")
 
 def get_forecast(lat, lon):
     url = "https://api.open-meteo.com/v1/forecast"
@@ -102,6 +89,20 @@ log_df = pd.DataFrame({
 log_file = "daily_log.csv"
 log_df.to_csv(log_file, mode='a', header=not os.path.isfile(log_file), index=False)
 print(f"Logged current temperature: {current_temp} degrees C at {current_time}")
+
+def get_historical_weather(lat, lon, start_date, end_date):  # ← just added
+    url = "https://archive-api.open-meteo.com/v1/archive"
+    params = {
+        "latitude": lat,
+        "longitude": lon,
+        "start_date": start_date,
+        "end_date": end_date,
+        "daily": "temperature_2m_max,temperature_2m_min",
+        "timezone": "America/Los_Angeles"
+    }
+    response = requests.get(url, params=params)
+    return response.json()
+
 
 # Collect historical data for the last 5 years
 all_data = []

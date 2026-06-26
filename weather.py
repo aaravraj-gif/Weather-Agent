@@ -34,7 +34,7 @@ def get_forecast(lat, lon):
         "current": "temperature_2m",
         "timezone": "auto"
     }
-    response = requests.get(url, params=params, timeout=20)
+    response = requests.get(url, params=params, timeout=60)
     return response.json()
 # What is the temperature at this location right now?
 def get_current_weather(lat, lon):
